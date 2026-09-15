@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team 15 - Intelligent Packing Assistant</title>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+      background: #111;
+      color: #fff;
+    }
+
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.85);
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      width: 290px;
+    }
+
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 10px;
+      padding: 8px;
+      resize: vertical;
+      border-radius: 6px;
+      border: 1px solid #555;
+      background: #222;
+      color: #fff;
+    }
+
+    button {
+      padding: 8px 14px;
+      margin-top: 8px;
+      margin-right: 5px;
+      cursor: pointer;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #status {
+      margin: 8px 0 0;
+      font-size: 14px;
+    }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+
+<body>
+
+  <div id="ui">
+    <h3 style="margin:0 0 6px 0;">
+      Team 15 - Simulation MVP
+    </h3>
+
+    <p id="status">
+      Status: Ready for AI Pipeline
+    </p>
+
+    <textarea id="instruction" rows="4">Pack these items into the box, keep the fragile item on top, and place the heavier item at the bottom.</textarea>
+
+    <button id="aiButton" onclick="runAIPlanning()">
+      Run AI Packing
+    </button>
+
+    <button onclick="runPacking(['Heavy', 'Normal', 'Fragile'])">
+      Test T04
+    </button>
+  </div>
+
+  <script>
+    const API_URL =
+      "https://ai-packing-assistant.onrender.com/plan";
+
+    // -----------------------------
+    // THREE.JS SETUP
+    // -----------------------------
+
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true
+    });
+
+    renderer.setSize(
+      window.innerWidth,
+      window.innerHeight
+    );
+
+    document.body.appendChild(renderer.domElement);
+
+    // Lights
+    const light = new THREE.DirectionalLight(
+      0xffffff,
+      1
+    );
+
+    light.position.set(5, 10, 7).normalize();
+
+    scene.add(light);
+
+    scene.add(
+      new THREE.AmbientLight(0x404040)
+    );
+
+    // Ground
+    const grid = new THREE.GridHelper(10, 10);
+    scene.add(grid);
+
+    // Box
+    const boxGeo = new THREE.BoxGeometry(
+      2,
+      1.5,
+      2
+    );
+
+    const boxMat = new THREE.MeshBasicMaterial({
+      color: 0x888888,
+      wireframe: true
+    });
+
+    const box = new THREE.Mesh(
+      boxGeo,
+      boxMat
+    );
+
+    box.position.set(0, 0.75, 0);
+
+    scene.add(box);
+
+    // Robotic arms
+    const armMaterial =
+      new THREE.MeshLambertMaterial({
+        color: 0x00ff00
+      });
+
+    const arm1 = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        0.1,
+        0.1,
+        2
+      ),
+      armMaterial
+    );
+
+    arm1.position.set(-2.5, 1, 0);
+
+    const arm2 = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        0.1,
+        0.1,
+        2
+      ),
+      armMaterial
+    );
+
+    arm2.position.set(2.5, 1, 0);
+
+    scene.add(arm1, arm2);
+
+    // Objects
+    const heavy = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        0.6,
+        0.4,
+        0.6
+      ),
+      new THREE.MeshLambertMaterial({
+        color: 0xff0000
+      })
+    );
+
+    heavy.position.set(
+      -1.5,
+      0.2,
+      1.5
+    );
+
+    const normal = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        0.6,
+        0.4,
+        0.6
+      ),
+      new THREE.MeshLambertMaterial({
+        color: 0x0000ff
+      })
+    );
+
+    normal.position.set(
+      0,
+      0.2,
+      1.5
+    );
+
+    const fragile = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        0.6,
+        0.4,
+        0.6
+      ),
+      new THREE.MeshLambertMaterial({
+        color: 0xffff00
+      })
+    );
+
+    fragile.position.set(
+      1.5,
+      0.2,
+      1.5
+    );
+
+    scene.add(
+      heavy,
+      normal,
+      fragile
+    );
+
+    camera.position.set(
+      0,
+      4,
+      6
+    );
+
+    camera.lookAt(
+      0,
+      0,
+      0
+    );
+
+    function animate() {
+      requestAnimationFrame(
+        animate
+      );
+
+      renderer.render(
+        scene,
+        camera
+      );
+    }
+
+    animate();
+
+    // -----------------------------
+    // AI → SIMULATOR
+    // -----------------------------
+
+    async function runAIPlanning() {
+      const instruction =
+        document
+          .getElementById("instruction")
+          .value
+          .trim();
+
+      const status =
+        document.getElementById(
+          "status"
+        );
+
+      const aiButton =
+        document.getElementById(
+          "aiButton"
+        );
+
+      if (!instruction) {
+        status.textContent =
+          "Please enter an instruction.";
+
+        return;
+      }
+
+      try {
+        aiButton.disabled = true;
+
+        status.textContent =
+          "Sending instruction to AI...";
+
+        const response =
+          await fetch(
+            API_URL,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body: JSON.stringify({
+                text: instruction
+              })
+            }
+          );
+
+        if (!response.ok) {
+          throw new Error(
+            `API request failed: ${response.status}`
+          );
+        }
+
+        const data =
+          await response.json();
+
+        console.log(
+          "AI response:",
+          data
+        );
+
+        if (
+          !Array.isArray(
+            data.order
+          )
+        ) {
+          throw new Error(
+            "Invalid order returned by API"
+          );
+        }
+
+        status.textContent =
+          `AI Plan: ${data.order.join(" → ")}`;
+
+        // Execute AI-generated plan
+        runPacking(
+          data.order
+        );
+
+      } catch (error) {
+        console.error(
+          "AI integration error:",
+          error
+        );
+
+        status.textContent =
+          "AI request failed. Check the browser console.";
+
+      } finally {
+        aiButton.disabled = false;
+      }
+    }
+
+    // -----------------------------
+    // PACKING ANIMATION
+    // -----------------------------
+
+    function runPacking(order) {
+
+      const targets = {
+        Heavy: heavy,
+        Normal: normal,
+        Fragile: fragile
+      };
+
+      const heights = {
+        Heavy: 0.2,
+        Normal: 0.6,
+        Fragile: 1.0
+      };
+
+      let delay = 0;
+
+      order.forEach(
+        (itemKey) => {
+
+          const item =
+            targets[itemKey];
+
+          if (!item) {
+            console.warn(
+              `Unknown object: ${itemKey}`
+            );
+
+            return;
+          }
+
+          const targetY =
+            heights[itemKey];
+
+          // Move upward
+          gsap.to(
+            item.position,
+            {
+              y: 2,
+              duration: 1,
+              delay: delay
+            }
+          );
+
+          // Move to box center
+          gsap.to(
+            item.position,
+            {
+              x: 0,
+              z: 0,
+              duration: 1,
+              delay: delay + 1
+            }
+          );
+
+          // Place according to packing order
+          gsap.to(
+            item.position,
+            {
+              y: targetY,
+              duration: 1,
+              delay: delay + 2
+            }
+          );
+
+          delay += 3;
+        }
+      );
+    }
+
+    // -----------------------------
+    // RESPONSIVE
+    // -----------------------------
+
+    window.addEventListener(
+      "resize",
+      () => {
+
+        camera.aspect =
+          window.innerWidth /
+          window.innerHeight;
+
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(
+          window.innerWidth,
+          window.innerHeight
+        );
+      }
+    );
+  </script>
+
+</body>
+</html>
