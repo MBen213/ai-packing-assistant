@@ -1,8 +1,10 @@
 # 🤖 Intelligent Packing Assistant
 
-An intelligent robotic packing assistant developed for the **AI Infra Summit Hackathon 2026**.
+An intelligent robotic packing assistant developed by **Team 15** for the **AI Infra Summit Hackathon 2026**.
 
-The project explores natural-language instruction understanding, packing-plan generation, and robotic simulation for the:
+The project demonstrates how a natural-language packing instruction can be transformed into a structured packing plan and then executed through a **Three.js robotic simulation**, including coordinated **bimanual manipulation** for the Heavy object.
+
+The project was built for the:
 
 **Intel Bimanual VLA Manipulation with Multi-Modal Reasoning**
 
@@ -10,40 +12,41 @@ The project explores natural-language instruction understanding, packing-plan ge
 
 ## 🚀 Project Overview
 
-The **Intelligent Packing Assistant** receives a natural-language packing instruction, extracts the relevant packing constraints, generates a structured packing plan, and sends the resulting packing order to a Three.js robotic simulation.
+The **Intelligent Packing Assistant** receives a natural-language packing instruction, extracts packing constraints, generates structured robot actions, and sends the resulting plan to a Three.js simulation.
 
 ### Current Prototype Flow
 
 ```text
 Natural-Language Instruction
             ↓
-      FastAPI /plan API
+       FastAPI /plan
             ↓
-    Instruction Parsing
+   Instruction Parsing
             ↓
       Packing Planner
             ↓
-  Structured Packing Plan
+   Structured Robot Actions
             ↓
-      Packing Order
+      Three.js Simulator
             ↓
-    Three.js Simulator
+   Bimanual Execution
+            ↓
+     Final Verification
 ```
+
+The current prototype focuses on an end-to-end planning and simulation workflow for a controlled packing scenario.
 
 ---
 
-## 📦 Current Prototype
+## 📦 MVP Scenario
 
-The current prototype supports:
+The MVP uses:
 
-- Natural-language packing instructions
-- Packing constraint extraction
-- Instruction parsing
-- Structured packing-plan generation
-- FastAPI backend
-- Public API deployment on Render
-- Three.js robotic simulation
-- API → Simulator integration
+* 1 Heavy object
+* 1 Normal object
+* 1 Fragile object
+* 1 box
+* 2 robotic arms
 
 ### Example Instruction
 
@@ -52,25 +55,31 @@ Pack these items into the box, keep the fragile item on top,
 and place the heavier item at the bottom.
 ```
 
-### Generated Packing Order
+### Expected Arrangement
 
-```json
-[
-  "Heavy",
-  "Normal",
-  "Fragile"
-]
+```text
+Heavy   → Bottom
+Normal  → Middle
+Fragile → Top
 ```
 
-The simulator uses this order to animate the packing sequence.
+### Generated Execution Plan
 
-> **Current implementation note:** the present instruction parser is rule-based. Advanced multimodal reasoning, voice input, bimanual coordination, and final-state verification are planned next stages.
+```text
+Heavy   → Bottom → Arm 1 + Arm 2
+Normal  → Middle → Arm 1
+Fragile → Top → Arm 2
+```
+
+The Heavy object uses a coordinated **bimanual pick-and-place** action involving both robotic arms.
 
 ---
 
-## 🧠 API
+## 🧠 Backend API
 
-### Base URL
+The backend is implemented with **FastAPI** and exposes a public `/plan` endpoint.
+
+### Live API
 
 https://ai-packing-assistant.onrender.com
 
@@ -84,13 +93,7 @@ https://ai-packing-assistant.onrender.com/docs
 POST /plan
 ```
 
-The `/plan` endpoint receives a natural-language packing instruction and returns:
-
-- Interpreted packing constraints
-- A structured packing plan
-- The execution order
-
-### Example Request
+### Request
 
 ```json
 {
@@ -116,17 +119,27 @@ The `/plan` endpoint receives a natural-language packing instruction and returns
       {
         "object_type": "heavy",
         "position": "bottom",
-        "arm": "arm1"
+        "action_type": "bimanual_pick_place",
+        "arms": [
+          "arm1",
+          "arm2"
+        ]
       },
       {
         "object_type": "normal",
         "position": "middle",
-        "arm": "arm1"
+        "action_type": "pick_place",
+        "arms": [
+          "arm1"
+        ]
       },
       {
         "object_type": "fragile",
         "position": "top",
-        "arm": "arm1"
+        "action_type": "pick_place",
+        "arms": [
+          "arm2"
+        ]
       }
     ]
   },
@@ -138,9 +151,29 @@ The `/plan` endpoint receives a natural-language packing instruction and returns
 }
 ```
 
+The API returns both the high-level packing order and explicit robotic actions, including the arms assigned to each object.
+
 ---
 
-## 🎮 Three.js Simulator
+## 🧩 Instruction Parsing
+
+The current instruction parser uses a **rule-based approach** to identify supported packing constraints.
+
+For the current MVP, it extracts relationships such as:
+
+```text
+Heavy   → Bottom
+Fragile → Top
+Normal  → Middle
+```
+
+The parser is intentionally lightweight and designed for the controlled hackathon scenario.
+
+It can be extended later with more advanced language understanding or multimodal reasoning.
+
+---
+
+## 🎮 Three.js Robotic Simulator
 
 The simulator is located at:
 
@@ -148,11 +181,7 @@ The simulator is located at:
 simulator/index.html
 ```
 
-The simulator sends a natural-language instruction to the public API and passes the returned packing order to:
-
-```javascript
-runPacking(data.order);
-```
+It connects to the deployed FastAPI backend, receives the generated plan, and visualizes the robot execution.
 
 ### Current Integration Flow
 
@@ -165,35 +194,116 @@ FastAPI /plan
        ↓
 Structured Packing Plan
        ↓
-data.order
+data.order + data.plan.actions
        ↓
-runPacking(data.order)
+runPacking()
        ↓
-Three.js Packing Simulation
+Three.js Robotic Simulation
 ```
+
+### Bimanual Execution
+
+The simulator reads the action assignments returned by the backend.
+
+For the Heavy object:
+
+```json
+{
+  "object_type": "heavy",
+  "position": "bottom",
+  "action_type": "bimanual_pick_place",
+  "arms": [
+    "arm1",
+    "arm2"
+  ]
+}
+```
+
+Both robotic arms participate in the manipulation and move with the Heavy object during the transport and placement sequence.
+
+The simulation maintains the object and assigned arms together during the bimanual movement before releasing the object at the final position.
 
 ---
 
-## 🛠️ Tech Stack
+## ✅ Final-State Verification
+
+After the packing sequence completes, the simulator performs a final-state verification step.
+
+The verification checks that the objects are positioned according to the expected packing arrangement.
+
+The successful state is reported as:
+
+```text
+Packing complete — final arrangement verified.
+```
+
+This provides a basic validation layer after robot execution.
+
+---
+
+## 🎙️ Speechmatics Integration
+
+A local microphone pipeline is included using **Speechmatics Realtime**.
+
+The implementation is located at:
+
+```text
+app/speech.py
+```
+
+The prototype performs real-time speech-to-text using the Speechmatics SDK.
+
+### Local Audio Dependencies
+
+Speech-related microphone dependencies are kept separate from the Render deployment:
+
+```text
+requirements-local.txt
+```
+
+This allows the microphone pipeline to be tested locally without requiring audio hardware dependencies in the cloud deployment.
+
+### Current Voice Pipeline
+
+```text
+Microphone
+    ↓
+Speechmatics Realtime
+    ↓
+Speech Transcript
+    ↓
+Natural-Language Instruction
+```
+
+The current Speechmatics component is a **local speech-to-text prototype** and is not yet directly embedded into the deployed web simulator.
+
+---
+
+## 🛠️ Technology Stack
 
 ### Backend
 
-- Python
-- FastAPI
-- Pydantic
-- Uvicorn
+* Python
+* FastAPI
+* Pydantic
+* Uvicorn
+* python-dotenv
+* Speechmatics Realtime SDK
 
 ### Frontend / Simulation
 
-- HTML5
-- JavaScript
-- Three.js
-- GSAP
+* HTML5
+* JavaScript
+* Three.js
+* GSAP
 
-### Deployment
+### Development & Deployment
 
-- GitHub
-- Render
+* Git
+* GitHub
+* Render
+* REST API
+* Swagger / OpenAPI
 
 ---
 
@@ -207,13 +317,15 @@ ai-packing-assistant/
 │   ├── main.py
 │   ├── parser.py
 │   ├── planner.py
-│   └── schemas.py
+│   ├── schemas.py
+│   └── speech.py
 │
 ├── simulator/
 │   └── index.html
 │
 ├── test_pipeline.py
 ├── requirements.txt
+├── requirements-local.txt
 ├── Procfile
 ├── .gitignore
 └── README.md
@@ -244,13 +356,13 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-### 4. Install dependencies
+### 4. Install backend dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 5. Run the API
+### 5. Run the FastAPI application
 
 ```bash
 python -m uvicorn app.main:app --reload
@@ -264,9 +376,47 @@ http://127.0.0.1:8000/docs
 
 ---
 
+## 🎮 Run the Simulator
+
+From the project directory:
+
+```powershell
+python -m http.server 5500 --directory simulator
+```
+
+Then open:
+
+```text
+http://localhost:5500
+```
+
+The simulator communicates with the deployed planning API and visualizes the generated packing actions.
+
+---
+
+## 🎙️ Run the Local Speechmatics Prototype
+
+Install the local dependencies:
+
+```powershell
+pip install -r requirements-local.txt
+```
+
+Then run:
+
+```powershell
+python app\speech.py
+```
+
+The Speechmatics prototype listens to microphone input and produces real-time transcripts.
+
+A valid Speechmatics API key must be configured through the project's environment configuration.
+
+---
+
 ## 🧪 Testing
 
-The current packing pipeline can be tested with:
+The current planning pipeline can be tested with:
 
 ```bash
 python test_pipeline.py
@@ -281,16 +431,25 @@ Natural-Language Instruction
             ↓
        Packing Planner
             ↓
-   Structured Packing Plan
+   Structured Robot Actions
             ↓
-["Heavy", "Normal", "Fragile"]
+      Packing Order
 ```
+
+The hackathon validation process also covers:
+
+* Basic packing
+* Heavy-at-bottom constraint
+* Fragile-at-top constraint
+* End-to-end planning
+* Bimanual coordination
+* Final-state verification
 
 ---
 
 ## 🔄 Current End-to-End Prototype
 
-The current prototype demonstrates:
+The current implemented prototype is:
 
 ```text
 Natural-Language Instruction
@@ -301,29 +460,43 @@ Natural-Language Instruction
             ↓
       FastAPI /plan
             ↓
-      Packing Order
+   Structured Robot Actions
             ↓
-     Three.js Simulator
+      Three.js Simulator
             ↓
-      Packing Animation
+     Bimanual Execution
+            ↓
+     Final Verification
 ```
+
+A separate local Speechmatics prototype provides:
+
+```text
+Microphone
+    ↓
+Speechmatics
+    ↓
+Speech-to-Text
+```
+
+The voice pipeline and robotic simulation are currently separate components of the prototype.
 
 ---
 
 ## 🔮 Roadmap
 
-The planned next development stages are:
+Future development can extend the current prototype with:
 
-- [ ] Voice input with Speechmatics
-- [ ] Speech-to-text integration
-- [ ] Multimodal object understanding
-- [ ] Meaningful bimanual robot coordination
-- [ ] Final-state verification
-- [ ] End-to-end voice-to-robot demo
-- [ ] Dynamic replanning
-- [ ] Automatic recovery
-
-The team is prioritizing the core end-to-end MVP before implementing optional features.
+* Fully integrated voice-to-robot web workflow
+* More advanced multimodal object understanding
+* Vision-based object detection
+* Richer natural-language reasoning
+* Dynamic replanning
+* Failure recovery
+* Automatic recovery after failed placement
+* More complex bimanual manipulation scenarios
+* Real robot integration
+* Advanced final-state perception and verification
 
 ---
 
@@ -331,30 +504,31 @@ The team is prioritizing the core end-to-end MVP before implementing optional fe
 
 ### Mohamed Benkhaled — MBen213
 
-- AI/backend integration
-- Instruction parsing
-- Packing-plan generation
-- Action-plan integration
-- API deployment
-- Speech/voice pipeline integration
+* AI/backend integration
+* Instruction parsing
+* Packing-plan generation
+* Robot action planning
+* API deployment
+* Speechmatics integration
+* Simulator integration
 
 ### Wessfago
 
-- Simulation environment
-- Robotic arms
-- Object manipulation
-- Bimanual coordination
+* Simulation environment
+* Robotic arms
+* Object manipulation
+* Bimanual coordination
 
 ### Eséchiel
 
-- Task logic
-- Test scenarios
-- Testing and validation
-- Documentation
-- Integration support
-- Final demo support
+* Task logic
+* Test scenarios
+* Testing and validation
+* Documentation
+* Integration support
+* Final demo support
 
-Roles may be adjusted as additional teammates are integrated.
+Roles may evolve as the project continues.
 
 ---
 
@@ -365,6 +539,10 @@ Roles may be adjusted as additional teammates are integrated.
 ### Track
 
 **Intel Bimanual VLA Manipulation with Multi-Modal Reasoning**
+
+### Project
+
+**Intelligent Packing Assistant**
 
 ### Repository
 
@@ -382,49 +560,48 @@ https://ai-packing-assistant.onrender.com/docs
 
 ## 📌 Project Status
 
-**MVP Integration in Progress 🚀**
+### Current Status
 
-The AI planning API is publicly deployed, and the Three.js simulator is being integrated with the API.
+**MVP implemented and deployed 🚀**
 
-### Current Milestone
+The project currently provides:
 
-```text
-Natural-Language Instruction
-            ↓
-      Instruction Parser
-            ↓
-       Packing Planner
-            ↓
-      FastAPI /plan
-            ↓
-      Packing Order
-            ↓
-     Three.js Simulator
-```
+* Natural-language instruction parsing
+* Structured packing-plan generation
+* Public FastAPI deployment
+* API-to-simulator integration
+* Three.js robotic simulation
+* Coordinated bimanual manipulation
+* Final-state verification
+* Local Speechmatics speech-to-text prototype
 
-### Next Major Milestones
+### Current MVP Milestone
 
 ```text
-Voice Input
-    ↓
-Speech-to-Text
-    ↓
-Instruction Understanding
-    ↓
-Packing Reasoning
-    ↓
-Bimanual Robot Actions
-    ↓
-Final-State Verification
+Natural Language
+      ↓
+Instruction Parsing
+      ↓
+Packing Planner
+      ↓
+FastAPI
+      ↓
+Robot Actions
+      ↓
+Three.js Simulation
+      ↓
+Bimanual Execution
+      ↓
+Final Verification
 ```
 
 ---
 
 ## 🔗 Project Links
 
-- **GitHub Repository:** https://github.com/MBen213/ai-packing-assistant
-- **Live API:** https://ai-packing-assistant.onrender.com
-- **API Documentation:** https://ai-packing-assistant.onrender.com/docs
+* **GitHub Repository:** https://github.com/MBen213/ai-packing-assistant
+* **Live API:** https://ai-packing-assistant.onrender.com
+* **Swagger Documentation:** https://ai-packing-assistant.onrender.com/docs
 
 ---
 
@@ -433,3 +610,5 @@ Final-State Verification
 **AI Infra Summit Hackathon 2026**
 
 **Intel Bimanual VLA Manipulation with Multi-Modal Reasoning**
+
+Built with Python, FastAPI, Speechmatics, JavaScript, Three.js, and GSAP.
