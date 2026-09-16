@@ -20,15 +20,25 @@ def generate_plan(instruction: PackingInstruction) -> PackingPlan:
     if instruction.constraints.fragile:
         positions["fragile"] = instruction.constraints.fragile
 
-    order = ["heavy", "normal", "fragile"]
-
     actions = [
         PackingAction(
-            object_type=obj,
-            position=positions[obj],
-            arm="arm1",
-        )
-        for obj in order
+            object_type="heavy",
+            position=positions["heavy"],
+            action_type="bimanual_pick_place",
+            arms=["arm1", "arm2"],
+        ),
+        PackingAction(
+            object_type="normal",
+            position=positions["normal"],
+            action_type="pick_place",
+            arms=["arm1"],
+        ),
+        PackingAction(
+            object_type="fragile",
+            position=positions["fragile"],
+            action_type="pick_place",
+            arms=["arm2"],
+        ),
     ]
 
     return PackingPlan(

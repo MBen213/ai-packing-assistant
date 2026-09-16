@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List
 
 
 class PackingConstraints(BaseModel):
@@ -16,7 +16,8 @@ class PackingInstruction(BaseModel):
 class PackingAction(BaseModel):
     object_type: str
     position: str
-    arm: str = "arm1"
+    action_type: str
+    arms: List[str]
 
 
 class PackingPlan(BaseModel):
