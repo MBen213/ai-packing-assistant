@@ -2,14 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
   <title>Team 15 - Intelligent Packing Assistant</title>
 
   <style>
     body {
       margin: 0;
       overflow: hidden;
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
       background: #111;
       color: #fff;
     }
@@ -19,35 +23,67 @@
       top: 10px;
       left: 10px;
       z-index: 10;
-      background: rgba(0, 0, 0, 0.85);
-      padding: 12px 16px;
-      border-radius: 8px;
+
+      background: rgba(0, 0, 0, 0.88);
+      padding: 14px 16px;
+
+      border-radius: 10px;
       border: 1px solid #333;
-      width: 290px;
+
+      width: 320px;
+
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    #ui h3 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+    }
+
+    #status {
+      margin: 8px 0 10px;
+      font-size: 14px;
+      line-height: 1.4;
     }
 
     textarea {
       width: 100%;
       box-sizing: border-box;
-      margin-top: 10px;
-      padding: 8px;
+
+      margin-top: 8px;
+      padding: 9px;
+
       resize: vertical;
-      border-radius: 6px;
+
+      border-radius: 7px;
       border: 1px solid #555;
+
       background: #222;
       color: #fff;
+
+      font-size: 13px;
+      line-height: 1.4;
     }
 
     button {
-      padding: 8px 14px;
-      margin-top: 8px;
+      padding: 9px 14px;
+
+      margin-top: 9px;
       margin-right: 5px;
+
       cursor: pointer;
+
       background: #3b82f6;
       color: white;
+
       border: none;
-      border-radius: 6px;
+      border-radius: 7px;
+
       font-weight: bold;
+    }
+
+    button:hover {
+      opacity: 0.9;
     }
 
     button:disabled {
@@ -55,45 +91,92 @@
       cursor: not-allowed;
     }
 
-    #status {
-      margin: 8px 0 0;
-      font-size: 14px;
+    #planBox {
+      margin-top: 10px;
+
+      padding: 8px;
+
+      border-radius: 6px;
+
+      background: rgba(255, 255, 255, 0.06);
+
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .green {
+      color: #4ade80;
     }
   </style>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <!-- Three.js -->
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
+  </script>
+
+  <!-- GSAP -->
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js">
+  </script>
 </head>
 
 <body>
 
+  <!-- ============================= -->
+  <!-- UI -->
+  <!-- ============================= -->
+
   <div id="ui">
-    <h3 style="margin:0 0 6px 0;">
-      Team 15 - Simulation MVP
+
+    <h3>
+      Team 15 - Intelligent Packing Assistant
     </h3>
 
     <p id="status">
       Status: Ready for AI Pipeline
     </p>
 
-    <textarea id="instruction" rows="4">Pack these items into the box, keep the fragile item on top, and place the heavier item at the bottom.</textarea>
+    <textarea
+      id="instruction"
+      rows="5"
+    >Pack these items into the box, keep the fragile item on top, and place the heavier item at the bottom.</textarea>
 
-    <button id="aiButton" onclick="runAIPlanning()">
+    <button
+      id="aiButton"
+      onclick="runAIPlanning()"
+    >
       Run AI Packing
     </button>
 
-    <button onclick="runPacking(['Heavy', 'Normal', 'Fragile'])">
+    <button
+      id="testButton"
+      onclick="runTestT04()"
+    >
       Test T04
     </button>
+
+    <div id="planBox">
+      <strong>Robot Plan</strong>
+      <div id="planText">
+        Waiting for AI plan...
+      </div>
+    </div>
+
   </div>
 
   <script>
+
+    // =====================================================
+    // CONFIGURATION
+    // =====================================================
+
     const API_URL =
       "https://ai-packing-assistant.onrender.com/plan";
 
-    // -----------------------------
+
+    // =====================================================
     // THREE.JS SETUP
-    // -----------------------------
+    // =====================================================
 
     const scene = new THREE.Scene();
 
@@ -113,88 +196,147 @@
       window.innerHeight
     );
 
-    document.body.appendChild(renderer.domElement);
-
-    // Lights
-    const light = new THREE.DirectionalLight(
-      0xffffff,
-      1
+    document.body.appendChild(
+      renderer.domElement
     );
 
-    light.position.set(5, 10, 7).normalize();
+
+    // =====================================================
+    // LIGHTING
+    // =====================================================
+
+    const light =
+      new THREE.DirectionalLight(
+        0xffffff,
+        1
+      );
+
+    light.position.set(
+      5,
+      10,
+      7
+    ).normalize();
 
     scene.add(light);
 
     scene.add(
-      new THREE.AmbientLight(0x404040)
+      new THREE.AmbientLight(
+        0x404040
+      )
     );
 
-    // Ground
-    const grid = new THREE.GridHelper(10, 10);
+
+    // =====================================================
+    // GROUND
+    // =====================================================
+
+    const grid =
+      new THREE.GridHelper(
+        10,
+        10
+      );
+
     scene.add(grid);
 
-    // Box
-    const boxGeo = new THREE.BoxGeometry(
-      2,
-      1.5,
-      2
+
+    // =====================================================
+    // BOX
+    // =====================================================
+
+    const boxGeo =
+      new THREE.BoxGeometry(
+        2,
+        1.5,
+        2
+      );
+
+    const boxMat =
+      new THREE.MeshBasicMaterial({
+        color: 0x888888,
+        wireframe: true
+      });
+
+    const box =
+      new THREE.Mesh(
+        boxGeo,
+        boxMat
+      );
+
+    box.position.set(
+      0,
+      0.75,
+      0
     );
-
-    const boxMat = new THREE.MeshBasicMaterial({
-      color: 0x888888,
-      wireframe: true
-    });
-
-    const box = new THREE.Mesh(
-      boxGeo,
-      boxMat
-    );
-
-    box.position.set(0, 0.75, 0);
 
     scene.add(box);
 
-    // Robotic arms
+
+    // =====================================================
+    // ROBOTIC ARMS
+    // =====================================================
+
     const armMaterial =
       new THREE.MeshLambertMaterial({
         color: 0x00ff00
       });
 
-    const arm1 = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        0.1,
-        0.1,
-        2
-      ),
-      armMaterial
+
+    const arm1 =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.1,
+          0.1,
+          2
+        ),
+        armMaterial
+      );
+
+    arm1.position.set(
+      -2.5,
+      1,
+      0
     );
 
-    arm1.position.set(-2.5, 1, 0);
 
-    const arm2 = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        0.1,
-        0.1,
-        2
-      ),
-      armMaterial
+    const arm2 =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.1,
+          0.1,
+          2
+        ),
+        armMaterial
+      );
+
+    arm2.position.set(
+      2.5,
+      1,
+      0
     );
 
-    arm2.position.set(2.5, 1, 0);
 
-    scene.add(arm1, arm2);
-
-    // Objects
-    const heavy = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        0.6,
-        0.4,
-        0.6
-      ),
-      new THREE.MeshLambertMaterial({
-        color: 0xff0000
-      })
+    scene.add(
+      arm1,
+      arm2
     );
+
+
+    // =====================================================
+    // OBJECTS
+    // =====================================================
+
+    // Heavy = RED
+    const heavy =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          0.6,
+          0.4,
+          0.6
+        ),
+        new THREE.MeshLambertMaterial({
+          color: 0xff0000
+        })
+      );
 
     heavy.position.set(
       -1.5,
@@ -202,16 +344,19 @@
       1.5
     );
 
-    const normal = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        0.6,
-        0.4,
-        0.6
-      ),
-      new THREE.MeshLambertMaterial({
-        color: 0x0000ff
-      })
-    );
+
+    // Normal = BLUE
+    const normal =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          0.6,
+          0.4,
+          0.6
+        ),
+        new THREE.MeshLambertMaterial({
+          color: 0x0000ff
+        })
+      );
 
     normal.position.set(
       0,
@@ -219,16 +364,19 @@
       1.5
     );
 
-    const fragile = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        0.6,
-        0.4,
-        0.6
-      ),
-      new THREE.MeshLambertMaterial({
-        color: 0xffff00
-      })
-    );
+
+    // Fragile = YELLOW
+    const fragile =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          0.6,
+          0.4,
+          0.6
+        ),
+        new THREE.MeshLambertMaterial({
+          color: 0xffff00
+        })
+      );
 
     fragile.position.set(
       1.5,
@@ -236,11 +384,17 @@
       1.5
     );
 
+
     scene.add(
       heavy,
       normal,
       fragile
     );
+
+
+    // =====================================================
+    // CAMERA
+    // =====================================================
 
     camera.position.set(
       0,
@@ -254,7 +408,13 @@
       0
     );
 
+
+    // =====================================================
+    // RENDER LOOP
+    // =====================================================
+
     function animate() {
+
       requestAnimationFrame(
         animate
       );
@@ -267,39 +427,165 @@
 
     animate();
 
-    // -----------------------------
-    // AI → SIMULATOR
-    // -----------------------------
+
+    // =====================================================
+    // OBJECT MAP
+    // =====================================================
+
+    const targets = {
+      Heavy: heavy,
+      Normal: normal,
+      Fragile: fragile
+    };
+
+
+    // =====================================================
+    // TARGET HEIGHTS
+    // =====================================================
+
+    const heights = {
+      Heavy: 0.2,
+      Normal: 0.6,
+      Fragile: 1.0
+    };
+
+
+    // =====================================================
+    // ARM REST POSITIONS
+    // =====================================================
+
+    const restPositions = {
+
+      arm1: {
+        x: -2.5,
+        y: 1,
+        z: 0
+      },
+
+      arm2: {
+        x: 2.5,
+        y: 1,
+        z: 0
+      }
+
+    };
+
+
+    // =====================================================
+    // RESET SCENE
+    // =====================================================
+
+    function resetScene() {
+
+      // Stop all animations
+      gsap.killTweensOf(
+        heavy.position
+      );
+
+      gsap.killTweensOf(
+        normal.position
+      );
+
+      gsap.killTweensOf(
+        fragile.position
+      );
+
+      gsap.killTweensOf(
+        arm1.position
+      );
+
+      gsap.killTweensOf(
+        arm2.position
+      );
+
+
+      // Reset objects
+      heavy.position.set(
+        -1.5,
+        0.2,
+        1.5
+      );
+
+      normal.position.set(
+        0,
+        0.2,
+        1.5
+      );
+
+      fragile.position.set(
+        1.5,
+        0.2,
+        1.5
+      );
+
+
+      // Reset arms
+      arm1.position.set(
+        restPositions.arm1.x,
+        restPositions.arm1.y,
+        restPositions.arm1.z
+      );
+
+      arm2.position.set(
+        restPositions.arm2.x,
+        restPositions.arm2.y,
+        restPositions.arm2.z
+      );
+
+
+      document.getElementById(
+        "planText"
+      ).innerHTML =
+        "Waiting for AI plan...";
+    }
+
+
+    // =====================================================
+    // AI PLANNING
+    // =====================================================
 
     async function runAIPlanning() {
+
       const instruction =
         document
-          .getElementById("instruction")
+          .getElementById(
+            "instruction"
+          )
           .value
           .trim();
+
 
       const status =
         document.getElementById(
           "status"
         );
 
+
       const aiButton =
         document.getElementById(
           "aiButton"
         );
 
+
       if (!instruction) {
+
         status.textContent =
           "Please enter an instruction.";
 
         return;
       }
 
+
       try {
+
         aiButton.disabled = true;
 
         status.textContent =
           "Sending instruction to AI...";
+
+
+        resetScene();
+
 
         const response =
           await fetch(
@@ -318,79 +604,229 @@
             }
           );
 
+
         if (!response.ok) {
+
           throw new Error(
             `API request failed: ${response.status}`
           );
         }
 
+
         const data =
           await response.json();
+
 
         console.log(
           "AI response:",
           data
         );
 
+
+        // ---------------------------------------------
+        // Validate order
+        // ---------------------------------------------
+
         if (
           !Array.isArray(
             data.order
           )
         ) {
+
           throw new Error(
-            "Invalid order returned by API"
+            "Invalid order returned by API."
           );
         }
+
+
+        // ---------------------------------------------
+        // Extract robot actions
+        // ---------------------------------------------
+
+        const actions =
+          Array.isArray(
+            data.plan?.actions
+          )
+            ? data.plan.actions
+            : [];
+
+
+        // ---------------------------------------------
+        // Display plan
+        // ---------------------------------------------
+
+        displayPlan(
+          data.order,
+          actions
+        );
+
 
         status.textContent =
           `AI Plan: ${data.order.join(" → ")}`;
 
-        // Execute AI-generated plan
+
+        // ---------------------------------------------
+        // Run simulation
+        // ---------------------------------------------
+
         runPacking(
-          data.order
+          data.order,
+          actions
         );
 
+
       } catch (error) {
+
         console.error(
           "AI integration error:",
           error
         );
 
+
         status.textContent =
-          "AI request failed. Check the browser console.";
+          `AI request failed: ${error.message}`;
+
 
       } finally {
+
         aiButton.disabled = false;
+
       }
+
     }
 
-    // -----------------------------
-    // PACKING ANIMATION
-    // -----------------------------
 
-    function runPacking(order) {
+    // =====================================================
+    // DISPLAY ROBOT PLAN
+    // =====================================================
 
-      const targets = {
-        Heavy: heavy,
-        Normal: normal,
-        Fragile: fragile
-      };
+    function displayPlan(
+      order,
+      actions
+    ) {
 
-      const heights = {
-        Heavy: 0.2,
-        Normal: 0.6,
-        Fragile: 1.0
-      };
+      const planText =
+        document.getElementById(
+          "planText"
+        );
 
-      let delay = 0;
+
+      if (
+        !actions ||
+        actions.length === 0
+      ) {
+
+        planText.innerHTML =
+          order
+            .map(
+              item =>
+                `<div>${item}</div>`
+            )
+            .join("");
+
+        return;
+      }
+
+
+      planText.innerHTML =
+        actions
+          .map(
+            action => {
+
+              const arms =
+                Array.isArray(
+                  action.arms
+                )
+                  ? action.arms.join(
+                      " + "
+                    )
+                  : "unknown";
+
+              return `
+                <div>
+                  <strong>
+                    ${capitalize(
+                      action.object_type
+                    )}
+                  </strong>
+                  →
+                  ${action.position}
+                  →
+                  ${action.action_type}
+                  →
+                  ${arms}
+                </div>
+              `;
+            }
+          )
+          .join("");
+
+    }
+
+
+    // =====================================================
+    // MAIN PACKING FUNCTION
+    // =====================================================
+
+    function runPacking(
+      order,
+      actions = []
+    ) {
+
+      resetScene();
+
+
+      // ---------------------------------------------
+      // Create one master timeline
+      // ---------------------------------------------
+
+      const master =
+        gsap.timeline({
+
+          onComplete: () => {
+
+            const success =
+              verifyFinalState();
+
+
+            const status =
+              document.getElementById(
+                "status"
+              );
+
+
+            if (success) {
+
+              status.innerHTML =
+                `<span class="green">
+                  Packing complete — final arrangement verified.
+                </span>`;
+
+            } else {
+
+              status.textContent =
+                "Packing finished, but final verification failed.";
+
+            }
+
+          }
+
+        });
+
+
+      // ---------------------------------------------
+      // Execute each item
+      // ---------------------------------------------
 
       order.forEach(
-        (itemKey) => {
+        itemKey => {
 
           const item =
             targets[itemKey];
 
+
           if (!item) {
+
             console.warn(
               `Unknown object: ${itemKey}`
             );
@@ -398,48 +834,691 @@
             return;
           }
 
+
+          // -------------------------------------------
+          // Match action by object type
+          // -------------------------------------------
+
+          const action =
+            actions.find(
+              a =>
+                a.object_type &&
+                a.object_type.toLowerCase() ===
+                  itemKey.toLowerCase()
+            );
+
+
+          // -------------------------------------------
+          // Determine assigned arms
+          // -------------------------------------------
+
+          let armsUsed;
+
+
+          if (
+            action &&
+            Array.isArray(
+              action.arms
+            ) &&
+            action.arms.length > 0
+          ) {
+
+            armsUsed =
+              action.arms;
+
+          } else {
+
+            // Fallback mapping
+            if (
+              itemKey === "Heavy"
+            ) {
+
+              armsUsed = [
+                "arm1",
+                "arm2"
+              ];
+
+            } else if (
+              itemKey === "Normal"
+            ) {
+
+              armsUsed = [
+                "arm1"
+              ];
+
+            } else {
+
+              armsUsed = [
+                "arm2"
+              ];
+
+            }
+
+          }
+
+
+          const isBimanual =
+            action?.action_type ===
+              "bimanual_pick_place" ||
+            armsUsed.length === 2;
+
+
           const targetY =
             heights[itemKey];
 
-          // Move upward
-          gsap.to(
-            item.position,
+
+          // -------------------------------------------
+          // Step 1: Move arm(s) to object
+          // -------------------------------------------
+
+          if (
+            armsUsed.includes(
+              "arm1"
+            )
+          ) {
+
+            master.to(
+              arm1.position,
+              {
+                x:
+                  item.position.x -
+                  0.45,
+
+                y: 1,
+
+                z:
+                  item.position.z,
+
+                duration: 0.8,
+
+                ease: "power2.inOut"
+              }
+            );
+
+          }
+
+
+          if (
+            armsUsed.includes(
+              "arm2"
+            )
+          ) {
+
+            master.to(
+              arm2.position,
+              {
+                x:
+                  item.position.x +
+                  0.45,
+
+                y: 1,
+
+                z:
+                  item.position.z,
+
+                duration: 0.8,
+
+                ease: "power2.inOut"
+              },
+
+              "<"
+            );
+
+          }
+
+
+          // -------------------------------------------
+          // Step 2: Grip / synchronization pause
+          // -------------------------------------------
+
+          master.to(
+            {},
             {
-              y: 2,
-              duration: 1,
-              delay: delay
+              duration: 0.5
             }
           );
 
-          // Move to box center
-          gsap.to(
+
+          // -------------------------------------------
+          // Step 3: Lift object + arm(s) together
+          // -------------------------------------------
+
+          master.to(
+            item.position,
+            {
+              y: 2.0,
+
+              duration: 1.0,
+
+              ease: "power2.inOut"
+            }
+          );
+
+
+          if (
+            armsUsed.includes(
+              "arm1"
+            )
+          ) {
+
+            master.to(
+              arm1.position,
+              {
+                x:
+                  item.position.x -
+                  0.45,
+
+                y: 2.45,
+
+                z:
+                  item.position.z,
+
+                duration: 1.0,
+
+                ease: "power2.inOut"
+              },
+
+              "<"
+            );
+
+          }
+
+
+          if (
+            armsUsed.includes(
+              "arm2"
+            )
+          ) {
+
+            master.to(
+              arm2.position,
+              {
+                x:
+                  item.position.x +
+                  0.45,
+
+                y: 2.45,
+
+                z:
+                  item.position.z,
+
+                duration: 1.0,
+
+                ease: "power2.inOut"
+              },
+
+              "<"
+            );
+
+          }
+
+
+          // -------------------------------------------
+          // Step 4: Move object + arm(s) over box
+          // -------------------------------------------
+
+          master.to(
             item.position,
             {
               x: 0,
               z: 0,
-              duration: 1,
-              delay: delay + 1
+
+              duration: 1.2,
+
+              ease: "power2.inOut"
             }
           );
 
-          // Place according to packing order
-          gsap.to(
+
+          if (
+            armsUsed.includes(
+              "arm1"
+            )
+          ) {
+
+            master.to(
+              arm1.position,
+              {
+                x:
+                  isBimanual
+                    ? -0.6
+                    : -0.45,
+
+                y:
+                  arm1.position.y,
+
+                z: 0,
+
+                duration: 1.2,
+
+                ease: "power2.inOut"
+              },
+
+              "<"
+            );
+
+          }
+
+
+          if (
+            armsUsed.includes(
+              "arm2"
+            )
+          ) {
+
+            master.to(
+              arm2.position,
+              {
+                x:
+                  isBimanual
+                    ? 0.6
+                    : 0.45,
+
+                y:
+                  arm2.position.y,
+
+                z: 0,
+
+                duration: 1.2,
+
+                ease: "power2.inOut"
+              },
+
+              "<"
+            );
+
+          }
+
+
+          // -------------------------------------------
+          // Step 5: Lower object + arm(s) together
+          // -------------------------------------------
+
+          master.to(
             item.position,
             {
               y: targetY,
-              duration: 1,
-              delay: delay + 2
+
+              duration: 1.2,
+
+              ease: "power2.inOut"
             }
           );
 
-          delay += 3;
+
+          if (
+            armsUsed.includes(
+              "arm1"
+            )
+          ) {
+
+            master.to(
+              arm1.position,
+              {
+                x:
+                  isBimanual
+                    ? -0.6
+                    : -0.45,
+
+                y:
+                  targetY +
+                  0.45,
+
+                z: 0,
+
+                duration: 1.2,
+
+                ease: "power2.inOut"
+              },
+
+              "<"
+            );
+
+          }
+
+
+          if (
+            armsUsed.includes(
+              "arm2"
+            )
+          ) {
+
+            master.to(
+              arm2.position,
+              {
+                x:
+                  isBimanual
+                    ? 0.6
+                    : 0.45,
+
+                y:
+                  targetY +
+                  0.45,
+
+                z: 0,
+
+                duration: 1.2,
+
+                ease: "power2.inOut"
+              },
+
+              "<"
+            );
+
+          }
+
+
+          // -------------------------------------------
+          // Step 6: HOLD at final position
+          // -------------------------------------------
+
+          // This is critical for T08.
+          // The object stays stable before release.
+
+          master.to(
+            {},
+            {
+              duration: 0.8
+            }
+          );
+
+
+          // -------------------------------------------
+          // Step 7: Release arm(s)
+          // -------------------------------------------
+
+          if (
+            armsUsed.includes(
+              "arm1"
+            )
+          ) {
+
+            master.to(
+              arm1.position,
+              {
+                x:
+                  arm1.position.x -
+                  0.25,
+
+                y:
+                  arm1.position.y +
+                  0.25,
+
+                duration: 0.5,
+
+                ease: "power2.out"
+              }
+            );
+
+          }
+
+
+          if (
+            armsUsed.includes(
+              "arm2"
+            )
+          ) {
+
+            master.to(
+              arm2.position,
+              {
+                x:
+                  arm2.position.x +
+                  0.25,
+
+                y:
+                  arm2.position.y +
+                  0.25,
+
+                duration: 0.5,
+
+                ease: "power2.out"
+              },
+
+              "<"
+            );
+
+          }
+
+
+          // -------------------------------------------
+          // Step 8: Reset assigned arm(s)
+          // -------------------------------------------
+
+          if (
+            armsUsed.includes(
+              "arm1"
+            )
+          ) {
+
+            master.to(
+              arm1.position,
+              {
+                x:
+                  restPositions.arm1.x,
+
+                y:
+                  restPositions.arm1.y,
+
+                z:
+                  restPositions.arm1.z,
+
+                duration: 0.8,
+
+                ease: "power2.inOut"
+              }
+            );
+
+          }
+
+
+          if (
+            armsUsed.includes(
+              "arm2"
+            )
+          ) {
+
+            master.to(
+              arm2.position,
+              {
+                x:
+                  restPositions.arm2.x,
+
+                y:
+                  restPositions.arm2.y,
+
+                z:
+                  restPositions.arm2.z,
+
+                duration: 0.8,
+
+                ease: "power2.inOut"
+              },
+
+              "<"
+            );
+
+          }
+
+
+          // Small separation between objects
+          master.to(
+            {},
+            {
+              duration: 0.3
+            }
+          );
+
         }
       );
+
     }
 
-    // -----------------------------
+
+    // =====================================================
+    // TEST T04
+    // =====================================================
+
+    function runTestT04() {
+
+      const status =
+        document.getElementById(
+          "status"
+        );
+
+
+      const order = [
+        "Heavy",
+        "Normal",
+        "Fragile"
+      ];
+
+
+      const actions = [
+
+        {
+          object_type: "heavy",
+          position: "bottom",
+          action_type:
+            "bimanual_pick_place",
+          arms: [
+            "arm1",
+            "arm2"
+          ]
+        },
+
+        {
+          object_type: "normal",
+          position: "middle",
+          action_type:
+            "pick_place",
+          arms: [
+            "arm1"
+          ]
+        },
+
+        {
+          object_type: "fragile",
+          position: "top",
+          action_type:
+            "pick_place",
+          arms: [
+            "arm2"
+          ]
+        }
+
+      ];
+
+
+      resetScene();
+
+
+      displayPlan(
+        order,
+        actions
+      );
+
+
+      status.textContent =
+        "Running T04 test...";
+
+
+      runPacking(
+        order,
+        actions
+      );
+
+    }
+
+
+    // =====================================================
+    // FINAL STATE VERIFICATION
+    // =====================================================
+
+    function verifyFinalState() {
+
+      const tolerance =
+        0.05;
+
+
+      const heavyCorrect =
+        Math.abs(
+          heavy.position.x
+        ) < tolerance &&
+        Math.abs(
+          heavy.position.z
+        ) < tolerance &&
+        Math.abs(
+          heavy.position.y - heights.Heavy
+        ) < tolerance;
+
+
+      const normalCorrect =
+        Math.abs(
+          normal.position.x
+        ) < tolerance &&
+        Math.abs(
+          normal.position.z
+        ) < tolerance &&
+        Math.abs(
+          normal.position.y - heights.Normal
+        ) < tolerance;
+
+
+      const fragileCorrect =
+        Math.abs(
+          fragile.position.x
+        ) < tolerance &&
+        Math.abs(
+          fragile.position.z
+        ) < tolerance &&
+        Math.abs(
+          fragile.position.y - heights.Fragile
+        ) < tolerance;
+
+
+      console.log(
+        "Final verification:",
+        {
+          Heavy: heavyCorrect,
+          Normal: normalCorrect,
+          Fragile: fragileCorrect
+        }
+      );
+
+
+      return (
+        heavyCorrect &&
+        normalCorrect &&
+        fragileCorrect
+      );
+
+    }
+
+
+    // =====================================================
+    // HELPERS
+    // =====================================================
+
+    function capitalize(
+      text
+    ) {
+
+      if (!text) {
+        return "";
+      }
+
+      return (
+        text.charAt(0).toUpperCase() +
+        text.slice(1)
+      );
+
+    }
+
+
+    // =====================================================
     // RESPONSIVE
-    // -----------------------------
+    // =====================================================
 
     window.addEventListener(
       "resize",
@@ -455,8 +1534,10 @@
           window.innerWidth,
           window.innerHeight
         );
+
       }
     );
+
   </script>
 
 </body>
